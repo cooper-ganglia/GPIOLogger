@@ -1,6 +1,7 @@
 # Ross Carbonite Switcher LiveEDL Logging with Raspberry Pi
 
-This guide provides a step-by-step process to set up a Raspberry Pi to log LiveEDL data from a Ross Carbonite switcher using GPIO and transfer the logs via FTP.
+## Project Description
+This project integrates a Raspberry Pi with a Ross Carbonite switcher to automate LiveEDL logging using GPIO triggers and FTP file transfers. It allows for seamless recording of switcher activity with a simple button press and automatic log uploads.
 
 ## Requirements
 ### Hardware
@@ -44,59 +45,18 @@ sudo apt install python3-pip lftp
 pip3 install RPi.GPIO
 ```
 
-### 2. **Python Script to Monitor GPIO**
-Save the following as `gpio_logger.py`.
-```python
-import RPi.GPIO as GPIO
-import os
-import time
+### 2. **Required Files**
 
-LOG_FILE = "/home/pi/edl_log.txt"
-START_COMMAND = "lftp -e 'open switcher_ip; user liveedl password; get edl_file; bye'"
+- `gpio_logger.py`: A Python script to monitor the GPIO button press and trigger LiveEDL recording.
+- `upload_edl.sh`: A Bash script to upload recorded EDL files to an FTP server.
+- `crontab` entry to automate the execution of the scripts.
 
-GPIO.setmode(GPIO.BCM)
-START_STOP_PIN = 17  # Corresponds to GPIO17 (Pin 11 on Raspberry Pi)
-GPIO.setup(START_STOP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-def button_pressed(channel):
-    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-    os.system(START_COMMAND)
-    with open(LOG_FILE, "a") as log:
-        log.write(f"[{timestamp}] LiveEDL Triggered\n")
-
-GPIO.add_event_detect(START_STOP_PIN, GPIO.FALLING, callback=button_pressed, bouncetime=300)
-
-try:
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
-    GPIO.cleanup()
-```
-
-### 3. **FTP Upload Script**
-Save as `upload_edl.sh`.
+Ensure the scripts are stored in `/home/pi/` and are executable:
 ```bash
-#!/bin/bash
-HOST='ftp_server_address'
-USER='ftp_username'
-PASS='ftp_password'
-LOCAL_DIR='/home/pi/edl_files'
-REMOTE_DIR='/path/on/ftp/server'
-
-lftp -f "
-open $HOST
-user $USER $PASS
-lcd $LOCAL_DIR
-mirror --reverse --verbose . $REMOTE_DIR
-bye
-"
-```
-Make it executable:
-```bash
-chmod +x upload_edl.sh
+chmod +x /home/pi/gpio_logger.py /home/pi/upload_edl.sh
 ```
 
-### 4. **Automate with Cron Jobs**
+### 3. **Automate with Cron Jobs**
 Edit crontab:
 ```bash
 crontab -e
@@ -105,6 +65,16 @@ Add these lines:
 ```bash
 @reboot /usr/bin/python3 /home/pi/gpio_logger.py &
 0 * * * * /home/pi/upload_edl.sh
+```
+
+## File Structure
+```
+📂 Ross-Carbonite-Logger
+├── 📜 README.md
+├── 📜 gpio_logger.py
+├── 📜 upload_edl.sh
+└── 📂 logs
+    └── edl_log.txt
 ```
 
 ## Usage
